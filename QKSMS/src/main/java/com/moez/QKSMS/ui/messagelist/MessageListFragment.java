@@ -24,12 +24,11 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.ContactsContract;
 import android.provider.Telephony;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.style.URLSpan;
@@ -41,6 +40,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.webkit.MimeTypeMap;
 import android.widget.AdapterView;
 import android.widget.Toast;
@@ -153,7 +153,6 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
     // sure we notice if the user has changed the default SMS app.
     private boolean mIsSmsEnabled;
 
-    private Cursor mCursor;
     private MessageListAdapter mAdapter;
     private SmoothLinearLayoutManager mLayoutManager;
     private MessageListRecyclerView mRecyclerView;
@@ -254,29 +253,6 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
         mAdapter = new MessageListAdapter(mContext);
         mAdapter.setItemClickListener(this);
         mAdapter.setMultiSelectListener(this);
-        mAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onChanged() {
-                LinearLayoutManager manager = (LinearLayoutManager) mRecyclerView.getLayoutManager();
-                int position;
-
-                if (mRowId != -1 && mCursor != null) {
-                    // Scroll to the position in the conversation for that message.
-                    position = SmsHelper.getPositionForMessageId(mCursor, "sms", mRowId, mAdapter.getColumnsMap());
-
-                    // Be sure to reset the row ID here---we only want to scroll to the message
-                    // the first time the cursor is loaded after the row ID is set.
-                    mRowId = -1;
-
-                } else {
-                    position = mAdapter.getItemCount() - 1;
-                }
-
-                if (position != -1) {
-                    manager.smoothScrollToPosition(mRecyclerView, null, position);
-                }
-            }
-        });
 
         mRecyclerView.setAdapter(mAdapter);
 
@@ -289,6 +265,32 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
         mComposeView.setLabel("MessageList");
 
         mRecyclerView.setComposeView(mComposeView);
+
+        mRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            public void onGlobalLayout() {
+                if (mAdapter.getCursor() == null) {
+                    return;
+                }
+
+                // Unregister the listener to only call scrollToPosition once. Do this once it's in a state
+                // where the cursor is not null though, since it'll be called once before then
+                if (Build.VERSION.SDK_INT < 16) {
+                    mRecyclerView.getViewTreeObserver().removeGlobalOnLayoutListener(this);
+                } else {
+                    mRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                }
+
+                if (mRowId != -1) {
+                    // Scroll to the position in the conversation for that message.
+                    int position = SmsHelper.getPositionForMessageId(mAdapter.getCursor(), "sms", mRowId, mAdapter.getColumnsMap());
+                    mRecyclerView.scrollToPosition(position);
+
+                    // Be sure to reset the row ID here---we only want to scroll to the message
+                    // the first time the cursor is loaded after the row ID is set.
+                    mRowId = -1;
+                }
+            }
+        });
 
         return view;
     }
@@ -319,7 +321,7 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
     /**
      * To be called when the user opens a conversation. Initializes the Conversation objects, sets
      * up the draft, and marks the conversation as read.
-     * <p/>
+     * <p>
      * Note: This will have no effect if the context has not been initialized yet.
      */
     private void onOpenConversation() {
@@ -668,7 +670,7 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
     /**
      * Should only be called for failed messages. Deletes the message, placing the text from the
      * message back in the edit box to be updated and then sent.
-     * <p/>
+     * <p>
      * Assumes that cursor points to the correct MessageItem.
      *
      * @param msgItem
@@ -717,9 +719,8 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
                 // Determine if we're deleting the last item in the cursor.
                 Boolean deletingLastItem = false;
                 if (mAdapter != null && mAdapter.getCursor() != null) {
-                    mCursor = mAdapter.getCursor();
-                    mCursor.moveToLast();
-                    long msgId = mCursor.getLong(MessageColumns.COLUMN_ID);
+                    mAdapter.getCursor().moveToLast();
+                    long msgId = mAdapter.getCursor().getLong(MessageColumns.COLUMN_ID);
                     deletingLastItem = msgId == msgItem.mMsgId;
                 }
 
