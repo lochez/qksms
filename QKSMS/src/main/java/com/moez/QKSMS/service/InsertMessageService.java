@@ -20,10 +20,6 @@ import com.moez.QKSMS.ui.settings.SettingsFragment;
 public class InsertMessageService extends IntentService {
     private static final String LOG = "InsertMessageService";
 
-    private SharedPreferences mPrefs;
-    private ConversationPrefsHelper mConversationPrefs;
-    private Message mMessage;
-
     public InsertMessageService() {
         super(LOG);
     }
@@ -31,7 +27,7 @@ public class InsertMessageService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
 
-        mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         String body = intent.getStringExtra("body");
         String address = intent.getStringExtra("address");
@@ -39,27 +35,27 @@ public class InsertMessageService extends IntentService {
 
         Uri uri = SmsHelper.addMessageToInbox(this, address, body, date);
 
-        mMessage = new Message(this, uri);
-        mConversationPrefs = new ConversationPrefsHelper(this, mMessage.getThreadId());
+        Message message = new Message(this, uri);
+        ConversationPrefsHelper conversationPrefs = new ConversationPrefsHelper(this, message.getThreadId());
 
         // The user has set messages from this address to be blocked, but we at the time there weren't any
         // messages from them already in the database, so we couldn't block any thread URI. Now that we have one,
         // we can block it, so that the conversation list adapter knows to ignore this thread in the main list
-        if (BlockedConversationHelper.isFutureBlocked(mPrefs, address)) {
-            BlockedConversationHelper.unblockFutureConversation(mPrefs, address);
-            BlockedConversationHelper.blockConversation(mPrefs, mMessage.getThreadId());
-            mMessage.markSeen();
+        if (BlockedConversationHelper.isFutureBlocked(prefs, address)) {
+            BlockedConversationHelper.unblockFutureConversation(prefs, address);
+            BlockedConversationHelper.blockConversation(prefs, message.getThreadId());
+            message.markSeen();
             BlockedConversationHelper.FutureBlockedConversationObservable.getInstance().futureBlockedConversationReceived();
 
             // If we have notifications enabled and this conversation isn't blocked
-        } else if (mConversationPrefs.getNotificationsEnabled() && !BlockedConversationHelper.getBlockedConversationIds(
-                PreferenceManager.getDefaultSharedPreferences(this)).contains(mMessage.getThreadId())) {
+        } else if (conversationPrefs.getNotificationsEnabled() && !BlockedConversationHelper.getBlockedConversationIds(
+                PreferenceManager.getDefaultSharedPreferences(this)).contains(message.getThreadId())) {
 
             // Only show QuickReply if we're outside of the app, and they have popups and QuickReply enabled.
-            if (!LifecycleHandler.isApplicationVisible() && mPrefs.getBoolean(SettingsFragment.QUICKREPLY, true)) {
+            if (!LifecycleHandler.isApplicationVisible() && prefs.getBoolean(SettingsFragment.QUICKREPLY, true)) {
                 Intent popupIntent = new Intent(this, QKReplyActivity.class);
                 popupIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                popupIntent.putExtra(QKReplyActivity.EXTRA_THREAD_ID, mMessage.getThreadId());
+                popupIntent.putExtra(QKReplyActivity.EXTRA_THREAD_ID, message.getThreadId());
                 startActivity(popupIntent);
             }
 
@@ -67,10 +63,10 @@ public class InsertMessageService extends IntentService {
             NotificationManager.create(this);
 
         } else { // We shouldn't show a notification for this message
-            mMessage.markSeen();
+            message.markSeen();
         }
 
-        if (mConversationPrefs.getWakePhoneEnabled()) {
+        if (conversationPrefs.getWakePhoneEnabled()) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             PowerManager.WakeLock wakeLock = pm.newWakeLock((PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP), "MessagingReceiver");
             wakeLock.acquire();
