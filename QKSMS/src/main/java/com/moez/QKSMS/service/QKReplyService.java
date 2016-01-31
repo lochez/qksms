@@ -27,6 +27,8 @@ import com.moez.QKSMS.ui.view.QKTextView;
 
 public class QKReplyService extends Service {
 
+    private static boolean sIsOpen = false;
+
     private WindowManager mWindowManager;
 
     @Bind(R.id.card) View mCard;
@@ -44,6 +46,11 @@ public class QKReplyService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (sIsOpen) {
+            return super.onStartCommand(intent, flags, startId);
+        }
+
+        sIsOpen = true;
 
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
@@ -121,6 +128,7 @@ public class QKReplyService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        sIsOpen = false;
         if (mCard != null) {
             mWindowManager.removeView(mCard);
         }
