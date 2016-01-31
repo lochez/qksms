@@ -160,6 +160,9 @@ public class ComposeView extends LinearLayout implements View.OnClickListener {
     @Override
     public void onFinishInflate() {
         super.onFinishInflate();
+        if (isInEditMode()) {
+            return;
+        }
 
         // Get references to the views
         mReplyText = (QKEditText) findViewById(R.id.compose_reply_text);
@@ -196,7 +199,9 @@ public class ComposeView extends LinearLayout implements View.OnClickListener {
 
         LiveViewManager.registerView(QKPreference.BACKGROUND, this, key -> {
             mReplyText.getBackground().setColorFilter(ThemeManager.getNeutralBubbleColor(), PorterDuff.Mode.SRC_ATOP);
-            getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.SRC_ATOP);
+            if (getBackground() != null) {
+                getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.SRC_ATOP);
+            }
         });
 
         // There is an option for using the return button instead of the emoticon button in the

@@ -29,13 +29,15 @@ public class InsertMessageService extends IntentService {
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-        String body = intent.getStringExtra("body");
         String address = intent.getStringExtra("address");
+        String body = intent.getStringExtra("body");
         long date = intent.getLongExtra("date", 0);
 
         Uri uri = SmsHelper.addMessageToInbox(this, address, body, date);
 
-        startService(new Intent(this, QKReplyService.class));
+        Intent notificationIntent = new Intent(this, QKReplyService.class);
+        notificationIntent.putExtras(intent);
+        startService(notificationIntent);
 
         Message message = new Message(this, uri);
         ConversationPrefsHelper conversationPrefs = new ConversationPrefsHelper(this, message.getThreadId());

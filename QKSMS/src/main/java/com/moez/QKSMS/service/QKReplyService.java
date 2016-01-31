@@ -13,16 +13,25 @@ import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import butterknife.Bind;
+import butterknife.ButterKnife;
 import com.moez.QKSMS.R;
 import com.moez.QKSMS.common.LiveViewManager;
+import com.moez.QKSMS.common.utils.DateFormatter;
+import com.moez.QKSMS.data.Contact;
 import com.moez.QKSMS.enums.QKPreference;
 import com.moez.QKSMS.ui.ThemeManager;
+import com.moez.QKSMS.ui.view.AvatarView;
+import com.moez.QKSMS.ui.view.QKTextView;
 
 public class QKReplyService extends Service {
 
     private WindowManager mWindowManager;
 
     @Bind(R.id.card) View mCard;
+    @Bind(R.id.avatar) AvatarView mAvatar;
+    @Bind(R.id.name) QKTextView mName;
+    @Bind(R.id.message) QKTextView mMessage;
+    @Bind(R.id.date) QKTextView mDateView;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -30,18 +39,27 @@ public class QKReplyService extends Service {
     }
 
     @Override
-    public void onCreate() {
-        super.onCreate();
+    public int onStartCommand(Intent intent, int flags, int startId) {
 
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
         mCard = LayoutInflater.from(this).inflate(R.layout.view_qkreply, null);
-
         mCard.findViewById(R.id.compose_view).setBackgroundDrawable(null);
+        ButterKnife.bind(this, mCard);
 
         LiveViewManager.registerView(key -> {
             mCard.getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.MULTIPLY);
         }, this, QKPreference.BACKGROUND);
+
+        String address = intent.getStringExtra("address");
+        String body = intent.getStringExtra("body");
+        long date = intent.getLongExtra("date", 0);
+        Contact contact = Contact.get(address, true);
+
+        mAvatar.setImageDrawable(contact.getAvatar(this, null));
+        mName.setText(contact.getName());
+        mMessage.setText(body);
+        mDateView.setText(DateFormatter.getMessageTimestamp(this, date));
 
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -51,7 +69,6 @@ public class QKReplyService extends Service {
                 PixelFormat.TRANSLUCENT);
 
         params.gravity = Gravity.TOP;
-        params.y = 100;
 
         int density = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
         mCard.setOnTouchListener(new View.OnTouchListener() {
@@ -73,7 +90,7 @@ public class QKReplyService extends Service {
                             mWindowManager.updateViewLayout(mCard, params);
                         });
                         animator.setInterpolator(new AccelerateDecelerateInterpolator());
-                        animator.setDuration(params.y / density);
+                        animator.setDuration(Math.abs(params.y / density));
                         animator.start();
                         return true;
 
@@ -87,6 +104,7 @@ public class QKReplyService extends Service {
         });
 
         mWindowManager.addView(mCard, params);
+        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override

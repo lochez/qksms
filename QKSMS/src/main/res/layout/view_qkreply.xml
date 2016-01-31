@@ -1,17 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<LinearLayout android:id="@+id/card"
+<RelativeLayout android:id="@+id/card"
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/qkreply_background"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingTop="12dp">
+
+    <com.moez.QKSMS.ui.view.AvatarView
+        android:id="@+id/avatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
+        tools:src="@drawable/tools_avatar" />
 
     <com.moez.QKSMS.ui.view.QKTextView
+        android:id="@+id/name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/test" />
+        android:layout_toRightOf="@id/avatar"
+        app:type="primary"
+        tools:text="Moez Bhatti"
+        tools:textColor="@color/theme_light_text_primary"
+        tools:textSize="16sp" />
 
-    <include layout="@layout/view_compose" />
+    <com.moez.QKSMS.ui.view.QKTextView
+        android:id="@+id/date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="8dp"
+        app:type="tertiary"
+        tools:text="2:18 AM"
+        tools:textColor="@color/theme_light_text_secondary"
+        tools:textSize="12sp" />
 
-</LinearLayout>
+    <com.moez.QKSMS.ui.view.QKTextView
+        android:id="@+id/message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/name"
+        android:layout_below="@+id/name"
+        android:layout_marginRight="8dp"
+        app:type="secondary"
+        tools:text="This is a test message. Now I'm writing it to be longer for testing purposes"
+        tools:textColor="@color/theme_light_text_secondary"
+        tools:textSize="14sp" />
+
+    <include
+        layout="@layout/view_compose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/message" />
+
+</RelativeLayout>
