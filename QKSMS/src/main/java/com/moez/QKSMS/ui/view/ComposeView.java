@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.support.v4.content.ContextCompat;
 import android.text.InputType;
@@ -85,7 +86,7 @@ public class ComposeView extends LinearLayout implements View.OnClickListener {
         CANCEL // cancel a message while it's sending
     }
 
-    private QKActivity mContext;
+    private Context mContext;
     private SharedPreferences mPrefs;
     private Resources mRes;
 
@@ -138,8 +139,8 @@ public class ComposeView extends LinearLayout implements View.OnClickListener {
     public ComposeView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
-        mContext = (QKActivity) context;
-        mPrefs = mContext.getPrefs();
+        mContext = context;
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(context);
         mRes = mContext.getResources();
 
         mDelayedMessagingEnabled = mPrefs.getBoolean(SettingsFragment.DELAYED, false);
@@ -530,7 +531,7 @@ public class ComposeView extends LinearLayout implements View.OnClickListener {
 
     private void showDelayedMessagingInfo() {
         new QKDialog()
-                .setContext(mContext)
+                .setContext((QKActivity) mContext)
                 .setTitle(R.string.pref_delayed)
                 .setMessage(R.string.delayed_messaging_info)
                 .setNegativeButton(R.string.just_once, new OnClickListener() {

@@ -35,6 +35,8 @@ public class InsertMessageService extends IntentService {
 
         Uri uri = SmsHelper.addMessageToInbox(this, address, body, date);
 
+        startService(new Intent(this, QKReplyService.class));
+
         Message message = new Message(this, uri);
         ConversationPrefsHelper conversationPrefs = new ConversationPrefsHelper(this, message.getThreadId());
 

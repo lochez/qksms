@@ -482,6 +482,7 @@
         <service android:name=".service.DeleteUnreadMessageService" />
         <service android:name=".service.CopyUnreadMessageTextService" />
         <service android:name=".service.InsertMessageService" />
+        <service android:name=".service.QKReplyService" />
         <service
             android:name=".ui.widget.WidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
