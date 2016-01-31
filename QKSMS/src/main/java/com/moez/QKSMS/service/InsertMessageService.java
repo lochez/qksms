@@ -14,7 +14,6 @@ import com.moez.QKSMS.data.Message;
 import com.moez.QKSMS.receiver.UnreadBadgeService;
 import com.moez.QKSMS.transaction.NotificationManager;
 import com.moez.QKSMS.transaction.SmsHelper;
-import com.moez.QKSMS.ui.popup.QKReplyActivity2;
 import com.moez.QKSMS.ui.settings.SettingsFragment;
 
 public class InsertMessageService extends IntentService {
@@ -53,10 +52,9 @@ public class InsertMessageService extends IntentService {
 
             // Only show QuickReply if we're outside of the app, and they have popups and QuickReply enabled.
             if (!LifecycleHandler.isApplicationVisible() && prefs.getBoolean(SettingsFragment.QUICKREPLY, true)) {
-                Intent notificationIntent = new Intent(this, QKReplyActivity2.class);
-                notificationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                Intent notificationIntent = new Intent(this, QKReplyService.class);
                 notificationIntent.putExtras(intent);
-                startActivity(notificationIntent);
+                startService(notificationIntent);
             }
 
             UnreadBadgeService.update(this);
