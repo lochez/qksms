@@ -12,6 +12,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.EditText;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import com.moez.QKSMS.R;
@@ -21,6 +22,7 @@ import com.moez.QKSMS.data.Contact;
 import com.moez.QKSMS.enums.QKPreference;
 import com.moez.QKSMS.ui.ThemeManager;
 import com.moez.QKSMS.ui.view.AvatarView;
+import com.moez.QKSMS.ui.view.ComposeView;
 import com.moez.QKSMS.ui.view.QKTextView;
 
 public class QKReplyService extends Service {
@@ -32,6 +34,8 @@ public class QKReplyService extends Service {
     @Bind(R.id.name) QKTextView mName;
     @Bind(R.id.message) QKTextView mMessage;
     @Bind(R.id.date) QKTextView mDateView;
+    @Bind(R.id.compose_view) ComposeView mComposeView;
+    @Bind(R.id.compose_reply_text) EditText mReplyText;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -44,8 +48,9 @@ public class QKReplyService extends Service {
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
 
         mCard = LayoutInflater.from(this).inflate(R.layout.view_qkreply, null);
-        mCard.findViewById(R.id.compose_view).setBackgroundDrawable(null);
         ButterKnife.bind(this, mCard);
+
+        mComposeView.setBackgroundDrawable(null);
 
         LiveViewManager.registerView(key -> {
             mCard.getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.MULTIPLY);
@@ -101,6 +106,12 @@ public class QKReplyService extends Service {
                 }
                 return false;
             }
+        });
+
+        mReplyText.setOnClickListener(v -> {
+            params.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+            mWindowManager.updateViewLayout(mCard, params);
+            mReplyText.setOnClickListener(null);
         });
 
         mWindowManager.addView(mCard, params);
