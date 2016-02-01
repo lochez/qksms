@@ -25,11 +25,12 @@ import com.moez.QKSMS.ui.view.AvatarView;
 import com.moez.QKSMS.ui.view.ComposeView;
 import com.moez.QKSMS.ui.view.QKTextView;
 
-public class QKReplyService extends Service {
+public class QKReplyService extends Service implements View.OnTouchListener {
 
     private static boolean sIsOpen = false;
 
     private WindowManager mWindowManager;
+    private WindowManager.LayoutParams mParams;
 
     @Bind(R.id.card) View mCard;
     @Bind(R.id.avatar) AvatarView mAvatar;
@@ -38,6 +39,10 @@ public class QKReplyService extends Service {
     @Bind(R.id.date) QKTextView mDateView;
     @Bind(R.id.compose_view) ComposeView mComposeView;
     @Bind(R.id.compose_reply_text) EditText mReplyText;
+
+    private int mDensity;
+    private int mInitialY;
+    private float mInitialTouchY;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -73,56 +78,54 @@ public class QKReplyService extends Service {
         mMessage.setText(body);
         mDateView.setText(DateFormatter.getMessageTimestamp(this, date));
 
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        mParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
+        mParams.gravity = Gravity.TOP;
 
-        params.gravity = Gravity.TOP;
-
-        int density = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
-        mCard.setOnTouchListener(new View.OnTouchListener() {
-            private int initialY;
-            private float initialTouchY;
-
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        initialY = params.y;
-                        initialTouchY = event.getRawY();
-                        return true;
-
-                    case MotionEvent.ACTION_UP:
-                        ValueAnimator animator = ValueAnimator.ofInt(params.y, 0);
-                        animator.addUpdateListener(animation -> {
-                            params.y = (int) animation.getAnimatedValue();
-                            mWindowManager.updateViewLayout(mCard, params);
-                        });
-                        animator.setInterpolator(new AccelerateDecelerateInterpolator());
-                        animator.setDuration(Math.abs(params.y / density));
-                        animator.start();
-                        return true;
-
-                    case MotionEvent.ACTION_MOVE:
-                        params.y = initialY + (int) (event.getRawY() - initialTouchY);
-                        mWindowManager.updateViewLayout(mCard, params);
-                        return true;
-                }
-                return false;
-            }
-        });
+        mDensity = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
+        mCard.setOnTouchListener(this);
 
         mReplyText.setOnClickListener(v -> {
-            params.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-            mWindowManager.updateViewLayout(mCard, params);
+            mParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+            mWindowManager.updateViewLayout(mCard, mParams);
             mReplyText.setOnClickListener(null);
         });
 
-        mWindowManager.addView(mCard, params);
+        mWindowManager.addView(mCard, mParams);
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        if (v == mCard) {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    mInitialY = mParams.y;
+                    mInitialTouchY = event.getRawY();
+                    return true;
+
+                case MotionEvent.ACTION_UP:
+                    ValueAnimator animator = ValueAnimator.ofInt(mParams.y, 0);
+                    animator.addUpdateListener(animation -> {
+                        mParams.y = (int) animation.getAnimatedValue();
+                        mWindowManager.updateViewLayout(mCard, mParams);
+                    });
+                    animator.setInterpolator(new AccelerateDecelerateInterpolator());
+                    animator.setDuration(Math.abs(mParams.y / mDensity));
+                    animator.start();
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    mParams.y = mInitialY + (int) (event.getRawY() - mInitialTouchY);
+                    mWindowManager.updateViewLayout(mCard, mParams);
+                    return true;
+            }
+        }
+        return false;
     }
 
     @Override
