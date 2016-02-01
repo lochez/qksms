@@ -1,10 +1,13 @@
 package com.moez.QKSMS.service;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
+import android.os.Handler;
 import android.os.IBinder;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -26,6 +29,7 @@ import com.moez.QKSMS.ui.view.ComposeView;
 import com.moez.QKSMS.ui.view.QKTextView;
 
 public class QKReplyService extends Service implements View.OnTouchListener {
+    private final String TAG = "QKReplyService";
 
     private static boolean sIsOpen = false;
 
@@ -96,6 +100,9 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         });
 
         mWindowManager.addView(mCard, mParams);
+
+        new Handler().postDelayed(this::dismiss, 5000);
+
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -126,6 +133,24 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             }
         }
         return false;
+    }
+
+    private void dismiss() {
+        ValueAnimator animator = ValueAnimator.ofInt(mParams.y, -mCard.getHeight());
+        animator.addUpdateListener(animation -> {
+            mParams.y = (int) animation.getAnimatedValue();
+            mWindowManager.updateViewLayout(mCard, mParams);
+        });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                super.onAnimationEnd(animation);
+                stopSelf();
+            }
+        });
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+        animator.setDuration((mParams.y + mCard.getHeight()) / mDensity);
+        animator.start();
     }
 
     @Override
