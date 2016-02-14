@@ -7,12 +7,14 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.EditText;
@@ -101,6 +103,22 @@ public class QKReplyService extends Service implements View.OnTouchListener {
 
         mWindowManager.addView(mCard, mParams);
 
+        mCard.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                mParams.y = -mCard.getHeight();
+                mWindowManager.updateViewLayout(mCard, mParams);
+                appear();
+
+                ViewTreeObserver observer = mCard.getViewTreeObserver();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    observer.removeOnGlobalLayoutListener(this);
+                } else {
+                    observer.removeGlobalOnLayoutListener(this);
+                }
+            }
+        });
+
         new Handler().postDelayed(this::dismiss, 5000);
 
         return super.onStartCommand(intent, flags, startId);
@@ -133,6 +151,17 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             }
         }
         return false;
+    }
+
+    private void appear() {
+        ValueAnimator animator = ValueAnimator.ofInt(-mCard.getHeight(), 0);
+        animator.addUpdateListener(animation -> {
+            mParams.y = (int) animation.getAnimatedValue();
+            mWindowManager.updateViewLayout(mCard, mParams);
+        });
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+        animator.setDuration(mCard.getHeight() / mDensity);
+        animator.start();
     }
 
     private void dismiss() {
