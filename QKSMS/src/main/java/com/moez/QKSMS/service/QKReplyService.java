@@ -38,6 +38,9 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     private WindowManager mWindowManager;
     private WindowManager.LayoutParams mParams;
 
+    private Handler mHandler;
+    private Runnable mDismissRunnable;
+
     @Bind(R.id.card) View mCard;
     @Bind(R.id.avatar) AvatarView mAvatar;
     @Bind(R.id.name) QKTextView mName;
@@ -60,10 +63,12 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         if (sIsOpen) {
             return super.onStartCommand(intent, flags, startId);
         }
-
         sIsOpen = true;
 
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+
+        mHandler = new Handler();
+        mDismissRunnable = this::dismiss;
 
         mCard = LayoutInflater.from(this).inflate(R.layout.view_qkreply, null);
         ButterKnife.bind(this, mCard);
@@ -99,6 +104,9 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             mParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
             mWindowManager.updateViewLayout(mCard, mParams);
             mReplyText.setOnClickListener(null);
+            
+            mHandler.removeCallbacks(mDismissRunnable);
+            mHandler.postDelayed(mDismissRunnable, 100000);
         });
 
         mWindowManager.addView(mCard, mParams);
@@ -108,6 +116,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             public void onGlobalLayout() {
                 mParams.y = -mCard.getHeight();
                 mWindowManager.updateViewLayout(mCard, mParams);
+                mHandler.postDelayed(mDismissRunnable, 5000);
                 appear();
 
                 ViewTreeObserver observer = mCard.getViewTreeObserver();
@@ -118,8 +127,6 @@ public class QKReplyService extends Service implements View.OnTouchListener {
                 }
             }
         });
-
-        new Handler().postDelayed(this::dismiss, 5000);
 
         return super.onStartCommand(intent, flags, startId);
     }
