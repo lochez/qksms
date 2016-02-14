@@ -8,20 +8,27 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.AttributeSet;
 import android.util.TypedValue;
+import android.view.KeyEvent;
+import android.widget.EditText;
 import com.moez.QKSMS.common.FontManager;
 import com.moez.QKSMS.common.LiveViewManager;
 import com.moez.QKSMS.common.TypefaceManager;
 import com.moez.QKSMS.enums.QKPreference;
 import com.moez.QKSMS.ui.ThemeManager;
 
-public class QKEditText extends android.widget.EditText {
+public class QKEditText extends EditText {
     public static final String TAG = "QKEditText";
 
     public interface TextChangedListener {
         void onTextChanged(CharSequence s);
     }
 
+    public interface KeyboardDismissedListener {
+        void onKeyboardDismissed();
+    }
+
     private Context mContext;
+    private KeyboardDismissedListener mKeyboardDismissedListener;
 
     public QKEditText(Context context) {
         super(context);
@@ -68,14 +75,6 @@ public class QKEditText extends android.widget.EditText {
         setText(getText());
     }
 
-    @Override
-    public void setText(CharSequence text, BufferType type) {
-        if (!TextUtils.isEmpty(text) || Build.VERSION.SDK_INT < 19) {
-            text = new SpannableStringBuilder(text);
-        }
-        super.setText(text, type);
-    }
-
     public void setTextChangedListener(final TextChangedListener listener) {
         if (listener != null) {
             addTextChangedListener(new TextWatcher() {
@@ -94,5 +93,26 @@ public class QKEditText extends android.widget.EditText {
                 }
             });
         }
+    }
+
+    public void setKeyboardDismissedListener(KeyboardDismissedListener keyboardDismissedListener) {
+        mKeyboardDismissedListener = keyboardDismissedListener;
+    }
+
+    @Override
+    public void setText(CharSequence text, BufferType type) {
+        if (!TextUtils.isEmpty(text) || Build.VERSION.SDK_INT < 19) {
+            text = new SpannableStringBuilder(text);
+        }
+        super.setText(text, type);
+    }
+
+    @Override
+    public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP && mKeyboardDismissedListener != null) {
+            mKeyboardDismissedListener.onKeyboardDismissed();
+        }
+
+        return super.onKeyPreIme(keyCode, event);
     }
 }

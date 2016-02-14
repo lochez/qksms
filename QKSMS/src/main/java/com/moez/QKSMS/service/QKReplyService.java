@@ -17,7 +17,6 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.widget.EditText;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import com.moez.QKSMS.R;
@@ -28,6 +27,7 @@ import com.moez.QKSMS.enums.QKPreference;
 import com.moez.QKSMS.ui.ThemeManager;
 import com.moez.QKSMS.ui.view.AvatarView;
 import com.moez.QKSMS.ui.view.ComposeView;
+import com.moez.QKSMS.ui.view.QKEditText;
 import com.moez.QKSMS.ui.view.QKTextView;
 
 public class QKReplyService extends Service implements View.OnTouchListener {
@@ -47,7 +47,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     @Bind(R.id.message) QKTextView mMessage;
     @Bind(R.id.date) QKTextView mDateView;
     @Bind(R.id.compose_view) ComposeView mComposeView;
-    @Bind(R.id.compose_reply_text) EditText mReplyText;
+    @Bind(R.id.compose_reply_text) QKEditText mReplyText;
 
     private int mDensity;
     private int mInitialY;
@@ -66,7 +66,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         sIsOpen = true;
 
         mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
-
+        mDensity = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
         mHandler = new Handler();
         mDismissRunnable = this::dismiss;
 
@@ -97,17 +97,17 @@ public class QKReplyService extends Service implements View.OnTouchListener {
                 PixelFormat.TRANSLUCENT);
         mParams.gravity = Gravity.TOP;
 
-        mDensity = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
         mCard.setOnTouchListener(this);
 
         mReplyText.setOnClickListener(v -> {
             mParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
             mWindowManager.updateViewLayout(mCard, mParams);
             mReplyText.setOnClickListener(null);
-            
+
             mHandler.removeCallbacks(mDismissRunnable);
-            mHandler.postDelayed(mDismissRunnable, 100000);
         });
+
+        mReplyText.setKeyboardDismissedListener(() -> mHandler.postDelayed(mDismissRunnable, 3000));
 
         mWindowManager.addView(mCard, mParams);
 
@@ -116,7 +116,6 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             public void onGlobalLayout() {
                 mParams.y = -mCard.getHeight();
                 mWindowManager.updateViewLayout(mCard, mParams);
-                mHandler.postDelayed(mDismissRunnable, 5000);
                 appear();
 
                 ViewTreeObserver observer = mCard.getViewTreeObserver();
