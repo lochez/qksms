@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -23,6 +24,9 @@ import com.moez.QKSMS.R;
 import com.moez.QKSMS.common.LiveViewManager;
 import com.moez.QKSMS.common.utils.DateFormatter;
 import com.moez.QKSMS.data.Contact;
+import com.moez.QKSMS.data.Conversation;
+import com.moez.QKSMS.data.ConversationLegacy;
+import com.moez.QKSMS.data.Message;
 import com.moez.QKSMS.enums.QKPreference;
 import com.moez.QKSMS.ui.ThemeManager;
 import com.moez.QKSMS.ui.view.AvatarView;
@@ -36,7 +40,12 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     private static boolean sIsOpen = false;
 
     private WindowManager mWindowManager;
-    private WindowManager.LayoutParams mParams;
+    private WindowManager.LayoutParams mParams = new WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT);
 
     private Handler mHandler;
     private Runnable mDismissRunnable;
@@ -70,33 +79,31 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         mHandler = new Handler();
         mDismissRunnable = this::dismiss;
 
-        mCard = LayoutInflater.from(this).inflate(R.layout.view_qkreply, null);
-        ButterKnife.bind(this, mCard);
-
-        mComposeView.setBackgroundDrawable(null);
-
-        LiveViewManager.registerView(key -> {
-            mCard.getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.MULTIPLY);
-        }, this, QKPreference.BACKGROUND);
-
         String address = intent.getStringExtra("address");
         String body = intent.getStringExtra("body");
         long date = intent.getLongExtra("date", 0);
         Contact contact = Contact.get(address, true);
+        Uri uri = intent.getParcelableExtra("uri");
+
+        Message message = new Message(this, uri);
+        Conversation conversation = Conversation.get(this, message.getThreadId(), false);
+        ConversationLegacy conversationLegacy = new ConversationLegacy(this, message.getThreadId());
+
+        mCard = LayoutInflater.from(this).inflate(R.layout.view_qkreply, null);
+        ButterKnife.bind(this, mCard);
 
         mAvatar.setImageDrawable(contact.getAvatar(this, null));
         mName.setText(contact.getName());
         mMessage.setText(body);
         mDateView.setText(DateFormatter.getMessageTimestamp(this, date));
 
-        mParams = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT);
-        mParams.gravity = Gravity.TOP;
+        mComposeView.setBackgroundDrawable(null);
+        mComposeView.onOpenConversation(conversation, conversationLegacy);
+        mComposeView.setOnSendListener((addresses, body1) -> dismiss());
 
+        LiveViewManager.registerView(key -> {
+            mCard.getBackground().setColorFilter(ThemeManager.getBackgroundColor(), PorterDuff.Mode.MULTIPLY);
+        }, this, QKPreference.BACKGROUND);
         mCard.setOnTouchListener(this);
 
         mReplyText.setOnClickListener(v -> {
@@ -109,6 +116,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
 
         mReplyText.setKeyboardDismissedListener(() -> mHandler.postDelayed(mDismissRunnable, 3000));
 
+        mParams.gravity = Gravity.TOP;
         mWindowManager.addView(mCard, mParams);
 
         mCard.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
@@ -116,6 +124,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             public void onGlobalLayout() {
                 mParams.y = -mCard.getHeight();
                 mWindowManager.updateViewLayout(mCard, mParams);
+                mHandler.postDelayed(mDismissRunnable, 5000);
                 appear();
 
                 ViewTreeObserver observer = mCard.getViewTreeObserver();

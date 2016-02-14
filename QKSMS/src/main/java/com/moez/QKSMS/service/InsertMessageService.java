@@ -54,6 +54,7 @@ public class InsertMessageService extends IntentService {
             if (!LifecycleHandler.isApplicationVisible() && prefs.getBoolean(SettingsFragment.QUICKREPLY, true)) {
                 Intent notificationIntent = new Intent(this, QKReplyService.class);
                 notificationIntent.putExtras(intent);
+                notificationIntent.putExtra("uri", uri);
                 startService(notificationIntent);
             }
 
