@@ -114,7 +114,11 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             mHandler.removeCallbacks(mDismissRunnable);
         });
 
-        mReplyText.setKeyboardDismissedListener(() -> mHandler.postDelayed(mDismissRunnable, 3000));
+        mReplyText.setKeyboardDismissedListener(() -> {
+            mHandler.postDelayed(mDismissRunnable, 3000);
+            mParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+            mWindowManager.updateViewLayout(mCard, mParams);
+        });
 
         mParams.gravity = Gravity.TOP;
         mWindowManager.addView(mCard, mParams);
