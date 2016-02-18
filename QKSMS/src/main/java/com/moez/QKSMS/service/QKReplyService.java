@@ -23,6 +23,7 @@ import butterknife.ButterKnife;
 import com.moez.QKSMS.R;
 import com.moez.QKSMS.common.LiveViewManager;
 import com.moez.QKSMS.common.utils.DateFormatter;
+import com.moez.QKSMS.common.utils.Units;
 import com.moez.QKSMS.data.Contact;
 import com.moez.QKSMS.data.Conversation;
 import com.moez.QKSMS.data.ConversationLegacy;
@@ -40,15 +41,23 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     private static boolean sIsOpen = false;
 
     private WindowManager mWindowManager;
-    private WindowManager.LayoutParams mParams = new WindowManager.LayoutParams(
+    private WindowManager.LayoutParams mCardParams = new WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT);
+    private WindowManager.LayoutParams mShadowParams = new WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_SYSTEM_ALERT,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT);
 
     private Handler mHandler;
     private Runnable mDismissRunnable;
+
+    private View mShadow;
 
     @Bind(R.id.card) View mCard;
     @Bind(R.id.avatar) AvatarView mAvatar;
@@ -78,6 +87,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         mDensity = (int) (getResources().getDisplayMetrics().densityDpi / 160f);
         mHandler = new Handler();
         mDismissRunnable = this::dismiss;
+        mCardParams.gravity = Gravity.TOP;
 
         String address = intent.getStringExtra("address");
         String body = intent.getStringExtra("body");
@@ -107,8 +117,8 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         mCard.setOnTouchListener(this);
 
         mReplyText.setOnClickListener(v -> {
-            mParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-            mWindowManager.updateViewLayout(mCard, mParams);
+            mCardParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+            mWindowManager.updateViewLayout(mCard, mCardParams);
             mReplyText.setOnClickListener(null);
 
             mHandler.removeCallbacks(mDismissRunnable);
@@ -116,18 +126,24 @@ public class QKReplyService extends Service implements View.OnTouchListener {
 
         mReplyText.setKeyboardDismissedListener(() -> {
             mHandler.postDelayed(mDismissRunnable, 3000);
-            mParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
-            mWindowManager.updateViewLayout(mCard, mParams);
+            mCardParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
+            mWindowManager.updateViewLayout(mCard, mCardParams);
         });
 
-        mParams.gravity = Gravity.TOP;
-        mWindowManager.addView(mCard, mParams);
+        mShadow = new View(this);
+        mShadow.setBackgroundResource(R.drawable.qkreply_shadow);
+        mShadowParams.y = -Units.dpToPx(this, 32);
+        mShadowParams.height = mWindowManager.getDefaultDisplay().getHeight() / 2;
+        mShadowParams.gravity = Gravity.TOP;
+
+        mWindowManager.addView(mShadow, mShadowParams);
+        mWindowManager.addView(mCard, mCardParams);
 
         mCard.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
-                mParams.y = -mCard.getHeight();
-                mWindowManager.updateViewLayout(mCard, mParams);
+                mCardParams.y = -mCard.getHeight();
+                mWindowManager.updateViewLayout(mCard, mCardParams);
                 mHandler.postDelayed(mDismissRunnable, 5000);
                 appear();
 
@@ -148,24 +164,24 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         if (v == mCard) {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
-                    mInitialY = mParams.y;
+                    mInitialY = mCardParams.y;
                     mInitialTouchY = event.getRawY();
                     return true;
 
                 case MotionEvent.ACTION_UP:
-                    ValueAnimator animator = ValueAnimator.ofInt(mParams.y, 0);
+                    ValueAnimator animator = ValueAnimator.ofInt(mCardParams.y, 0);
                     animator.addUpdateListener(animation -> {
-                        mParams.y = (int) animation.getAnimatedValue();
-                        mWindowManager.updateViewLayout(mCard, mParams);
+                        mCardParams.y = (int) animation.getAnimatedValue();
+                        mWindowManager.updateViewLayout(mCard, mCardParams);
                     });
                     animator.setInterpolator(new AccelerateDecelerateInterpolator());
-                    animator.setDuration(Math.abs(mParams.y / mDensity));
+                    animator.setDuration(Math.abs(mCardParams.y / mDensity));
                     animator.start();
                     return true;
 
                 case MotionEvent.ACTION_MOVE:
-                    mParams.y = mInitialY + (int) (event.getRawY() - mInitialTouchY);
-                    mWindowManager.updateViewLayout(mCard, mParams);
+                    mCardParams.y = mInitialY + (int) (event.getRawY() - mInitialTouchY);
+                    mWindowManager.updateViewLayout(mCard, mCardParams);
                     return true;
             }
         }
@@ -175,8 +191,9 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     private void appear() {
         ValueAnimator animator = ValueAnimator.ofInt(-mCard.getHeight(), 0);
         animator.addUpdateListener(animation -> {
-            mParams.y = (int) animation.getAnimatedValue();
-            mWindowManager.updateViewLayout(mCard, mParams);
+            mCardParams.y = (int) animation.getAnimatedValue();
+            mWindowManager.updateViewLayout(mCard, mCardParams);
+            mShadow.setAlpha(animation.getAnimatedFraction());
         });
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
         animator.setDuration(mCard.getHeight() / mDensity);
@@ -184,10 +201,11 @@ public class QKReplyService extends Service implements View.OnTouchListener {
     }
 
     private void dismiss() {
-        ValueAnimator animator = ValueAnimator.ofInt(mParams.y, -mCard.getHeight());
+        ValueAnimator animator = ValueAnimator.ofInt(mCardParams.y, -mCard.getHeight());
         animator.addUpdateListener(animation -> {
-            mParams.y = (int) animation.getAnimatedValue();
-            mWindowManager.updateViewLayout(mCard, mParams);
+            mCardParams.y = (int) animation.getAnimatedValue();
+            mWindowManager.updateViewLayout(mCard, mCardParams);
+            mShadow.setAlpha(1f - animation.getAnimatedFraction());
         });
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -197,7 +215,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
             }
         });
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
-        animator.setDuration((mParams.y + mCard.getHeight()) / mDensity);
+        animator.setDuration((mCardParams.y + mCard.getHeight()) / mDensity);
         animator.start();
     }
 
@@ -207,6 +225,7 @@ public class QKReplyService extends Service implements View.OnTouchListener {
         sIsOpen = false;
         if (mCard != null) {
             mWindowManager.removeView(mCard);
+            mWindowManager.removeView(mShadow);
         }
     }
 }
