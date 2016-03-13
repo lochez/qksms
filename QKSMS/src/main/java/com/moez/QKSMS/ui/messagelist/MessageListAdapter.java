@@ -192,6 +192,12 @@ public class MessageListAdapter extends RecyclerCursorAdapter<MessageListViewHol
         // from onPduLoaded, it will reset to the real avatar. This test is to avoid that flash.
         boolean pduLoaded = messageItem.isSms() || messageItem.mSlideshow != null;
 
+        if (isSelected(messageItem.mMsgId)) {
+            holder.itemView.setBackgroundColor(0x11000000);
+        } else {
+            holder.itemView.setBackgroundColor(0x00000000);
+        }
+
         bindGrouping(holder, messageItem);
         bindTimestamp(holder, messageItem);
 

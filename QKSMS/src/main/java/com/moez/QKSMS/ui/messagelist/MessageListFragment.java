@@ -322,11 +322,8 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
                                 .setTitle(R.string.warning)
                                 .setMessage(R.string.stagefright_warning)
                                 .setNegativeButton(R.string.cancel, null)
-                                .setPositiveButton(R.string.yes, new View.OnClickListener() {
-                                    @Override
-                                    public void onClick(View view) {
-                                        MessageUtils.viewMmsMessageAttachment(getActivity(), messageItem.mMessageUri, messageItem.mSlideshow, getAsyncDialog());
-                                    }
+                                .setPositiveButton(R.string.yes, view1 -> {
+                                    MessageUtils.viewMmsMessageAttachment(getActivity(), messageItem.mMessageUri, messageItem.mSlideshow, getAsyncDialog());
                                 })
                                 .show();
                         break;
@@ -336,92 +333,91 @@ public class MessageListFragment extends QKContentFragment implements ActivityLa
             } else if (messageItem != null && ContentType.TEXT_VCARD.equals(messageItem.mTextContentType)) {
                 openVcard(messageItem);
             } else {
-                showMessageDetails(messageItem);
+                QKDialog dialog = new QKDialog();
+                dialog.setContext(mContext);
+                dialog.setTitle(R.string.message_options);
+
+                MsgListMenuClickListener l = new MsgListMenuClickListener(messageItem);
+
+                // It is unclear what would make most sense for copying an MMS message
+                // to the clipboard, so we currently do SMS only.
+                if (messageItem.isSms()) {
+                    // Message type is sms. Only allow "edit" if the message has a single recipient
+                    if (getRecipients().size() == 1 && (messageItem.mBoxId == Telephony.Sms.MESSAGE_TYPE_OUTBOX || messageItem.mBoxId == Telephony.Sms.MESSAGE_TYPE_FAILED)) {
+                        dialog.addMenuItem(R.string.menu_edit, MENU_EDIT_MESSAGE);
+
+                    }
+
+                    dialog.addMenuItem(R.string.copy_message_text, MENU_COPY_MESSAGE_TEXT);
+                }
+
+                addCallAndContactMenuItems(dialog, messageItem);
+
+                // Forward is not available for undownloaded messages.
+                if (messageItem.isDownloaded() && (messageItem.isSms() || MessageUtils.isForwardable(mContext, messageItem.getMessageId())) && mIsSmsEnabled) {
+                    dialog.addMenuItem(R.string.menu_forward, MENU_FORWARD_MESSAGE);
+                }
+
+                if (messageItem.isMms()) {
+                    switch (messageItem.mBoxId) {
+                        case Telephony.Mms.MESSAGE_BOX_INBOX:
+                            break;
+                        case Telephony.Mms.MESSAGE_BOX_OUTBOX:
+                            // Since we currently break outgoing messages to multiple
+                            // recipients into one message per recipient, only allow
+                            // editing a message for single-recipient conversations.
+                            if (getRecipients().size() == 1) {
+                                dialog.addMenuItem(R.string.menu_edit, MENU_EDIT_MESSAGE);
+                            }
+                            break;
+                    }
+                    switch (messageItem.mAttachmentType) {
+                        case SmsHelper.TEXT:
+                            break;
+                        case SmsHelper.VIDEO:
+                        case SmsHelper.IMAGE:
+                            if (MessageUtils.haveSomethingToCopyToSDCard(mContext, messageItem.mMsgId)) {
+                                dialog.addMenuItem(R.string.copy_to_sdcard, MENU_COPY_TO_SDCARD);
+                            }
+                            break;
+                        case SmsHelper.SLIDESHOW:
+                        default:
+                            dialog.addMenuItem(R.string.view_slideshow, MENU_VIEW_SLIDESHOW);
+                            if (MessageUtils.haveSomethingToCopyToSDCard(mContext, messageItem.mMsgId)) {
+                                dialog.addMenuItem(R.string.copy_to_sdcard, MENU_COPY_TO_SDCARD);
+                            }
+                            if (MessageUtils.isDrmRingtoneWithRights(mContext, messageItem.mMsgId)) {
+                                dialog.addMenuItem(MessageUtils.getDrmMimeMenuStringRsrc(mContext, messageItem.mMsgId), MENU_SAVE_RINGTONE);
+                            }
+                            break;
+                    }
+                }
+
+                if (messageItem.mLocked && mIsSmsEnabled) {
+                    dialog.addMenuItem(R.string.menu_unlock, MENU_UNLOCK_MESSAGE);
+                } else if (mIsSmsEnabled) {
+                    dialog.addMenuItem(R.string.menu_lock, MENU_LOCK_MESSAGE);
+                }
+
+                dialog.addMenuItem(R.string.view_message_details, MENU_VIEW_MESSAGE_DETAILS);
+
+                if (messageItem.mDeliveryStatus != MessageItem.DeliveryStatus.NONE || messageItem.mReadReport) {
+                    dialog.addMenuItem(R.string.view_delivery_report, MENU_DELIVERY_REPORT);
+                }
+
+                if (mIsSmsEnabled) {
+                    dialog.addMenuItem(R.string.delete_message, MENU_DELETE_MESSAGE);
+                }
+
+                dialog.buildMenu(l);
+                dialog.show();
             }
         }
     }
 
     @Override
     public void onItemLongClick(MessageItem messageItem, View view) {
-
-        QKDialog dialog = new QKDialog();
-        dialog.setContext(mContext);
-        dialog.setTitle(R.string.message_options);
-
-        MsgListMenuClickListener l = new MsgListMenuClickListener(messageItem);
-
-        // It is unclear what would make most sense for copying an MMS message
-        // to the clipboard, so we currently do SMS only.
-        if (messageItem.isSms()) {
-            // Message type is sms. Only allow "edit" if the message has a single recipient
-            if (getRecipients().size() == 1 && (messageItem.mBoxId == Telephony.Sms.MESSAGE_TYPE_OUTBOX || messageItem.mBoxId == Telephony.Sms.MESSAGE_TYPE_FAILED)) {
-                dialog.addMenuItem(R.string.menu_edit, MENU_EDIT_MESSAGE);
-
-            }
-
-            dialog.addMenuItem(R.string.copy_message_text, MENU_COPY_MESSAGE_TEXT);
-        }
-
-        addCallAndContactMenuItems(dialog, messageItem);
-
-        // Forward is not available for undownloaded messages.
-        if (messageItem.isDownloaded() && (messageItem.isSms() || MessageUtils.isForwardable(mContext, messageItem.getMessageId())) && mIsSmsEnabled) {
-            dialog.addMenuItem(R.string.menu_forward, MENU_FORWARD_MESSAGE);
-        }
-
-        if (messageItem.isMms()) {
-            switch (messageItem.mBoxId) {
-                case Telephony.Mms.MESSAGE_BOX_INBOX:
-                    break;
-                case Telephony.Mms.MESSAGE_BOX_OUTBOX:
-                    // Since we currently break outgoing messages to multiple
-                    // recipients into one message per recipient, only allow
-                    // editing a message for single-recipient conversations.
-                    if (getRecipients().size() == 1) {
-                        dialog.addMenuItem(R.string.menu_edit, MENU_EDIT_MESSAGE);
-                    }
-                    break;
-            }
-            switch (messageItem.mAttachmentType) {
-                case SmsHelper.TEXT:
-                    break;
-                case SmsHelper.VIDEO:
-                case SmsHelper.IMAGE:
-                    if (MessageUtils.haveSomethingToCopyToSDCard(mContext, messageItem.mMsgId)) {
-                        dialog.addMenuItem(R.string.copy_to_sdcard, MENU_COPY_TO_SDCARD);
-                    }
-                    break;
-                case SmsHelper.SLIDESHOW:
-                default:
-                    dialog.addMenuItem(R.string.view_slideshow, MENU_VIEW_SLIDESHOW);
-                    if (MessageUtils.haveSomethingToCopyToSDCard(mContext, messageItem.mMsgId)) {
-                        dialog.addMenuItem(R.string.copy_to_sdcard, MENU_COPY_TO_SDCARD);
-                    }
-                    if (MessageUtils.isDrmRingtoneWithRights(mContext, messageItem.mMsgId)) {
-                        dialog.addMenuItem(MessageUtils.getDrmMimeMenuStringRsrc(mContext, messageItem.mMsgId), MENU_SAVE_RINGTONE);
-                    }
-                    break;
-            }
-        }
-
-        if (messageItem.mLocked && mIsSmsEnabled) {
-            dialog.addMenuItem(R.string.menu_unlock, MENU_UNLOCK_MESSAGE);
-        } else if (mIsSmsEnabled) {
-            dialog.addMenuItem(R.string.menu_lock, MENU_LOCK_MESSAGE);
-        }
-
-        dialog.addMenuItem(R.string.view_message_details, MENU_VIEW_MESSAGE_DETAILS);
-
-        if (messageItem.mDeliveryStatus != MessageItem.DeliveryStatus.NONE || messageItem.mReadReport) {
-            dialog.addMenuItem(R.string.view_delivery_report, MENU_DELIVERY_REPORT);
-        }
-
-        if (mIsSmsEnabled) {
-            dialog.addMenuItem(R.string.delete_message, MENU_DELETE_MESSAGE);
-        }
-
-        dialog.buildMenu(l);
-        dialog.show();
+        mAdapter.toggleSelection(messageItem.getMessageId(), messageItem);
     }
 
     private void addCallAndContactMenuItems(QKDialog dialog, MessageItem msgItem) {
